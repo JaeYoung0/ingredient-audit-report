@@ -1,0 +1,9 @@
+{
+  "functions": {
+    "api/verify.py": {
+      "memory": 1024,
+      "maxDuration": 60,
+      "includeFiles": "api/ingredients.jsonl"
+    }
+  }
+}

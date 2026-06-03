@@ -1,0 +1,121 @@
+<!doctype html><html lang=ko><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>전성분 검수 체험</title>
+<style>
+*{box-sizing:border-box} body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;
+margin:0;background:#0f1115;color:#e5e7eb;line-height:1.5}
+.nav{position:sticky;top:0;background:#0b0d11ee;backdrop-filter:blur(6px);border-bottom:1px solid #262b36;
+padding:12px 20px;display:flex;gap:16px;align-items:center;z-index:10}
+.nav a{color:#9ca3af;text-decoration:none;font-size:14px;padding:4px 10px;border-radius:8px}
+.nav a.on{background:#1f2430;color:#fff} .nav .sp{flex:1}
+.wrap{max-width:880px;margin:0 auto;padding:28px 20px}
+h1{font-size:22px;margin:0 0 4px} .sub{color:#9ca3af;margin:0 0 20px;font-size:14px}
+.drop{border:1.5px dashed #2b313c;border-radius:14px;padding:28px;text-align:center;cursor:pointer;
+background:#171a21;transition:.15s} .drop:hover{border-color:#38bdf8;background:#181c24}
+.drop input{display:none}
+.preview{margin-top:14px;text-align:center} .preview img{max-width:100%;max-height:420px;border-radius:10px;border:1px solid #2b313c}
+.btn{margin-top:14px;width:100%;padding:12px;border:0;border-radius:10px;background:#2563eb;color:#fff;
+font-size:15px;font-weight:600;cursor:pointer} .btn:disabled{opacity:.5;cursor:default}
+.note{font-size:12px;color:#6b7280;margin-top:10px}
+.stat{font-size:15px;margin:18px 0 8px} .stat b{font-size:19px;color:#fff}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{font-size:12px;padding:3px 9px;border-radius:20px;color:#fff;font-weight:600}
+.row{background:#0f1115;border:1px solid #262b36;border-left-width:4px;border-radius:8px;padding:8px 11px;margin-bottom:6px}
+.badge{display:inline-block;font-size:11px;font-weight:700;color:#fff;padding:2px 8px;border-radius:6px;margin-bottom:5px}
+.pair{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:15px}
+.arrow{color:#6b7280} .score{margin-left:auto;font-size:12px;color:#9ca3af}
+.tok,.std{font-weight:600} .eq{color:#e5e7eb}
+.del{background:#7f1d1d;color:#fecaca;border-radius:3px;padding:0 1px}
+.ins{background:#14532d;color:#bbf7d0;border-radius:3px;padding:0 1px}
+.cands{margin-top:6px;font-size:12px;color:#9ca3af}
+.cand{background:#1f2430;padding:2px 7px;border-radius:12px;margin-right:4px} .cand b{color:#cbd5e1}
+.allgood{background:#0f2417;border:1px solid #14532d;color:#86efac;font-size:13px;padding:10px;border-radius:8px}
+.passfold summary{cursor:pointer;color:#16a34a;font-size:13px;padding:6px 0}
+.passchips{display:flex;flex-wrap:wrap;gap:5px;padding:6px 0}
+.passchip{background:#11261a;color:#86efac;border:1px solid #1c3a28;font-size:12px;padding:2px 8px;border-radius:12px}
+.err{background:#3b1d1d;border:1px solid #7f1d1d;color:#fecaca;padding:10px 12px;border-radius:8px;font-size:13px}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff5;border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+.legend{font-size:12px;color:#9ca3af;margin:10px 0 0}
+</style></head><body>
+<div class=nav>
+  <b style="color:#fff">🧪 전성분 검수</b>
+  <a href="/">리포트</a>
+  <a href="/demo.html" class=on>체험</a>
+  <span class=sp></span>
+  <a href="https://github.com/JaeYoung0/ingredient-audit-report" target=_blank>GitHub</a>
+</div>
+<div class=wrap>
+  <h1>라벨 한 장으로 전성분 검수 체험</h1>
+  <p class=sub>화장품 라벨 이미지를 올리면 Upstage Information Extract로 전성분을 추출하고,
+  KCIA 표준화명칭목록(21,851종)과 대조해 판정합니다.</p>
+
+  <label class=drop id=drop>
+    <input type=file id=file accept="image/*">
+    <div id=dropmsg>📷 이미지를 클릭해서 선택 (또는 드래그)<br><span class=note>JPG/PNG/WebP · 8MB 이하</span></div>
+  </label>
+  <div class=preview id=preview></div>
+  <button class=btn id=go disabled>검수하기</button>
+  <p class=note>※ 공개 데모입니다. 업로드 이미지는 검수 목적의 1회 추론에만 사용됩니다.</p>
+  <p class=legend>diff: <span class=del>빨강=라벨 표기</span> · <span class=ins>초록=표준명</span> · 회색=일치</p>
+
+  <div id=out></div>
+</div>
+<script>
+const STATUS={PASS:["✅","표준 일치","#16a34a"],ALIAS:["🟡","구명칭(옛 표기)","#ca8a04"],
+SUSPECT:["🟠","오타 의심","#ea580c"],UNKNOWN:["🔴","미등록","#dc2626"],EMPTY:["·","빈값","#6b7280"]};
+const esc=s=>(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function diff(a,b){a=a||"";b=b||"";const m=a.length,n=b.length;
+  const dp=Array.from({length:m+1},()=>new Array(n+1).fill(0));
+  for(let i=m-1;i>=0;i--)for(let j=n-1;j>=0;j--)dp[i][j]=a[i]===b[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  let i=0,j=0,L="",R="";
+  while(i<m&&j<n){if(a[i]===b[j]){L+=`<span class=eq>${esc(a[i])}</span>`;R+=`<span class=eq>${esc(b[j])}</span>`;i++;j++;}
+    else if(dp[i+1][j]>=dp[i][j+1]){L+=`<span class=del>${esc(a[i])}</span>`;i++;}
+    else{R+=`<span class=ins>${esc(b[j])}</span>`;j++;}}
+  while(i<m){L+=`<span class=del>${esc(a[i])}</span>`;i++;}
+  while(j<n){R+=`<span class=ins>${esc(b[j])}</span>`;j++;}
+  return [L,R];}
+function rowHtml(t){const[ic,lb,c]=STATUS[t.status]||["?",t.status,"#999"];
+  const target=t.std_kr||t.suggestion;let L,R;
+  if(t.status==="PASS"){L=`<span class=eq>${esc(t.token)}</span>`;R=`<span class=eq>${esc(target||t.token)}</span>`;}
+  else if(target){[L,R]=diff(t.token,target);} else {L=esc(t.token);R="<span style=color:#6b7280>후보 없음</span>";}
+  const arrow=t.status==="PASS"?"":"<span class=arrow>→</span>";
+  const sc=t.score!=null?`<span class=score>유사도 ${t.score}</span>`:"";
+  let cands="";
+  if((t.status==="SUSPECT"||t.status==="UNKNOWN")&&t.candidates&&t.candidates.length)
+    cands=`<div class=cands>후보: ${t.candidates.slice(0,3).map(x=>`<span class=cand>${esc(x.std_kr)} <b>${x.score}</b></span>`).join(" ")}</div>`;
+  return `<div class=row style="border-left-color:${c}"><div class=badge style="background:${c}">${ic} ${lb}</div>
+    <div class=pair><div class=tok>${L}</div>${arrow}<div class=std>${R}</div>${sc}</div>${cands}</div>`;}
+
+let dataUrl=null,mime=null;
+const file=document.getElementById("file"),go=document.getElementById("go"),
+  preview=document.getElementById("preview"),out=document.getElementById("out"),
+  drop=document.getElementById("drop"),dropmsg=document.getElementById("dropmsg");
+function load(f){if(!f)return; if(f.size>8*1024*1024){out.innerHTML=`<div class=err>이미지가 8MB를 초과합니다.</div>`;return;}
+  mime=f.type||"image/jpeg";const r=new FileReader();
+  r.onload=e=>{dataUrl=e.target.result;preview.innerHTML=`<img src="${dataUrl}">`;go.disabled=false;dropmsg.innerHTML="📷 다른 이미지 선택";};
+  r.readAsDataURL(f);}
+file.onchange=e=>load(e.target.files[0]);
+drop.ondragover=e=>{e.preventDefault();};
+drop.ondrop=e=>{e.preventDefault();load(e.dataTransfer.files[0]);};
+go.onclick=async()=>{if(!dataUrl)return;go.disabled=true;out.innerHTML="";
+  go.innerHTML='<span class=spin></span>추출·대조 중...';
+  try{
+    const res=await fetch("/api/verify",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({image:dataUrl,mime})});
+    const d=await res.json();
+    if(!res.ok||d.error){out.innerHTML=`<div class=err>오류: ${esc(d.error||res.status)}</div>`;return;}
+    const s=d.summary,T=Object.values(s).reduce((a,b)=>a+b,0),pass=s.PASS||0;
+    const rate=T?Math.round(pass/T*100):0;
+    const chips=["PASS","ALIAS","SUSPECT","UNKNOWN"].filter(k=>s[k]).map(k=>
+      `<span class=chip style="background:${STATUS[k][2]}">${STATUS[k][0]} ${k} ${s[k]}</span>`).join(" ");
+    const flagged=d.tokens.filter(t=>t.status!=="PASS"),passed=d.tokens.filter(t=>t.status==="PASS");
+    let rows=flagged.length?flagged.map(rowHtml).join(""):`<div class=allgood>✅ 모든 성분이 표준명과 일치합니다</div>`;
+    if(passed.length)rows+=`<details class=passfold><summary>✅ 표준 일치 ${passed.length}개 (펼쳐보기)</summary>
+      <div class=passchips>${passed.map(t=>`<span class=passchip>${esc(t.token)}</span>`).join("")}</div></details>`;
+    out.innerHTML=`<div class=stat><b>${rate}%</b> 표준 일치 · 총 ${T}개 성분 · 검토 필요 ${T-pass}건</div>
+      <div class=chips>${chips}</div>${rows}`;
+  }catch(e){out.innerHTML=`<div class=err>요청 실패: ${esc(e.message)}</div>`;}
+  finally{go.disabled=false;go.textContent="검수하기";}
+};
+</script></body></html>
