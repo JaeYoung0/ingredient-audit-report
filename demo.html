@@ -1,6 +1,6 @@
 <!doctype html><html lang=ko><head><meta charset=utf-8>
 <meta name=viewport content="width=device-width,initial-scale=1">
-<title>전성분 검수 체험</title>
+<title>전성분 검수 데모</title>
 <style>
 *{box-sizing:border-box} body{font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;
 margin:0;background:#0f1115;color:#e5e7eb;line-height:1.5}
@@ -10,9 +10,10 @@ padding:12px 20px;display:flex;gap:16px;align-items:center;z-index:10}
 .nav a.on{background:#1f2430;color:#fff} .nav .sp{flex:1}
 .wrap{max-width:880px;margin:0 auto;padding:28px 20px}
 h1{font-size:22px;margin:0 0 4px} .sub{color:#9ca3af;margin:0 0 20px;font-size:14px}
-.drop{border:1.5px dashed #2b313c;border-radius:14px;padding:28px;text-align:center;cursor:pointer;
-background:#171a21;transition:.15s} .drop:hover{border-color:#38bdf8;background:#181c24}
-.drop input{display:none}
+.drop{display:block;border:1.5px dashed #2b313c;border-radius:14px;padding:32px 20px;
+text-align:center;cursor:pointer;background:#171a21;transition:border-color .15s,background .15s;color:#9ca3af}
+.drop:hover{border-color:#38bdf8;background:#181c24}
+.drop.drag{border-color:#38bdf8;background:#10243a;color:#7dd3fc}
 .preview{margin-top:14px;text-align:center} .preview img{max-width:100%;max-height:420px;border-radius:10px;border:1px solid #2b313c}
 .btn{margin-top:14px;width:100%;padding:12px;border:0;border-radius:10px;background:#2563eb;color:#fff;
 font-size:15px;font-weight:600;cursor:pointer} .btn:disabled{opacity:.5;cursor:default}
@@ -41,19 +42,17 @@ font-size:15px;font-weight:600;cursor:pointer} .btn:disabled{opacity:.5;cursor:d
 <div class=nav>
   <b style="color:#fff">🧪 전성분 검수</b>
   <a href="/">리포트</a>
-  <a href="/demo.html" class=on>체험</a>
+  <a href="/demo.html" class=on>데모</a>
   <span class=sp></span>
   <a href="https://github.com/JaeYoung0/ingredient-audit-report" target=_blank>GitHub</a>
 </div>
 <div class=wrap>
-  <h1>라벨 한 장으로 전성분 검수 체험</h1>
+  <h1>라벨 한 장으로 전성분 검수 데모</h1>
   <p class=sub>화장품 라벨 이미지를 올리면 Upstage Information Extract로 전성분을 추출하고,
   KCIA 표준화명칭목록(21,851종)과 대조해 판정합니다.</p>
 
-  <label class=drop id=drop>
-    <input type=file id=file accept="image/*">
-    <div id=dropmsg>📷 이미지를 클릭해서 선택 (또는 드래그)<br><span class=note>JPG/PNG/WebP · 8MB 이하</span></div>
-  </label>
+  <input type=file id=file accept="image/*" style="display:none">
+  <div class=drop id=drop><div id=dropmsg>📷 클릭하거나 이미지를 여기로 드래그</div></div>
   <div class=preview id=preview></div>
   <button class=btn id=go disabled>검수하기</button>
   <p class=note>※ 공개 데모입니다. 업로드 이미지는 검수 목적의 1회 추론에만 사용됩니다.</p>
@@ -96,8 +95,13 @@ function load(f){if(!f)return; if(f.size>8*1024*1024){out.innerHTML=`<div class=
   r.onload=e=>{dataUrl=e.target.result;preview.innerHTML=`<img src="${dataUrl}">`;go.disabled=false;dropmsg.innerHTML="📷 다른 이미지 선택";};
   r.readAsDataURL(f);}
 file.onchange=e=>load(e.target.files[0]);
-drop.ondragover=e=>{e.preventDefault();};
-drop.ondrop=e=>{e.preventDefault();load(e.dataTransfer.files[0]);};
+drop.onclick=()=>file.click();
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();drop.classList.add("drag");}));
+["dragleave","dragend"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>{e.preventDefault();e.stopPropagation();drop.classList.remove("drag");
+  const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f)load(f);});
+// 페이지 바깥에 떨어뜨렸을 때 브라우저가 파일 여는 기본동작 방지
+["dragover","drop"].forEach(ev=>window.addEventListener(ev,e=>{if(e.target!==drop&&!drop.contains(e.target))e.preventDefault();}));
 go.onclick=async()=>{if(!dataUrl)return;go.disabled=true;out.innerHTML="";
   go.innerHTML='<span class=spin></span>추출·대조 중...';
   try{

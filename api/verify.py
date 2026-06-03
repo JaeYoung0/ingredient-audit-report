@@ -1,4 +1,4 @@
-"""Vercel Python 서버리스 함수: 라벨 이미지 -> Upstage IE 추출 -> KCIA 사전 대조 -> 판정.
+"""Vercel Python 서버리스 함수: 라벨 이미지 -> Upstage Information Extract 추출 -> KCIA 사전 대조 -> 판정.
 
 - API 키는 환경변수 UPSTAGE_API_KEY 에서만 읽음 (클라이언트 노출 없음).
 - 입력: POST JSON { image: <base64>, mime: "image/jpeg" }
